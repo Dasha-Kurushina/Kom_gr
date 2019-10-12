@@ -1,6 +1,7 @@
 from tkinter import *
 from math import sqrt,pow
 import numpy as np
+from json import load, dump
 
 root = None
 canvas = None
@@ -16,6 +17,9 @@ selected_line = {
 }
 coords_visible = 0
 funcs_visible = 0
+
+colors = load(open('colors.json'))
+last_color = 0
 
 def del_selected_line(event):
     global lines
@@ -62,7 +66,9 @@ def mouse_click(event):
                 selected_line['x1,y1'] = [x1,y1]
                 mouse_clicked = 1
             if  mouse_clicked:
+                selected_line['color'] = canvas.itemconfig(line)['fill'][4]
                 canvas.itemconfig(line,fill="red",width=3)
+                break
                 
     else:
         mouse_clicked = 0
@@ -82,7 +88,7 @@ def mouse_click(event):
             
             selected_line['line'] = None
             
-            canvas.itemconfig(line,fill="black",width=2)
+            canvas.itemconfig(line,fill=selected_line['color'],width=2)
             
         
 def update_labels():
@@ -94,8 +100,17 @@ def update_labels():
 def new_line():   
     global canvas
     global lines
+    global last_color
     
-    line = canvas.create_line(50,50,200,200,fill="black",width=2)    
+    try:
+        color = colors[last_color]
+        last_color += 1
+        
+    except IndexError:
+        last_color = 0
+        color = colors[last_color]
+    
+    line = canvas.create_line(50,50,200,200,fill=color ,width=2)    
     lines += [line]
     update_labels()
 
