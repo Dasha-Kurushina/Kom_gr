@@ -61,6 +61,8 @@ def mouse_click(event):
                 selected_line['end'] = 1
                 selected_line['x1,y1'] = [x1,y1]
                 mouse_clicked = 1
+            if  mouse_clicked:
+                canvas.itemconfig(line,fill="red",width=3)
                 
     else:
         mouse_clicked = 0
@@ -79,6 +81,9 @@ def mouse_click(event):
             update_labels()
             
             selected_line['line'] = None
+            
+            canvas.itemconfig(line,fill="black",width=2)
+            
         
 def update_labels():
     show_coordinates()
@@ -90,7 +95,7 @@ def new_line():
     global canvas
     global lines
     
-    line = canvas.create_line(50,50,200,200)    
+    line = canvas.create_line(50,50,200,200,fill="black",width=2)    
     lines += [line]
     update_labels()
 
@@ -172,17 +177,17 @@ def create_window():
     canvas.bind("<Button-1>" ,mouse_click)
     canvas.bind("<Button-2>" ,del_selected_line)
 
-    canvas.create_line(235,0, 235,330)    
-    canvas.create_line(0,165, 470,165)    
+    canvas.create_line(235,0, 235,330, fill="#aad400")    
+    canvas.create_line(0,165, 470,165, fill="#aad400")    
 
     for x in np.linspace(-230,230,11):
-        canvas.create_line(x + 235, 160, x + 235, 170) 
-        canvas.create_text(x + 235, 175, text = str(x), justify=CENTER)
+        canvas.create_line(x + 235, 160, x + 235, 170, fill="#aad400") 
+        canvas.create_text(x + 235, 175, text = str(x), justify=CENTER, fill="#aad400")
         
     for y in np.linspace(-160,160,11):
         if y != 0:
-            canvas.create_line(230, 165 - y, 240, 165 - y) 
-            canvas.create_text(260, 165 - y, text = str(y))
+            canvas.create_line(230, 165 - y, 240, 165 - y, fill="#aad400") 
+            canvas.create_text(260, 165 - y, text = str(y), fill="#aad400")
 
     
     return root
