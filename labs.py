@@ -79,65 +79,37 @@ def del_selected_line(event):
         update_labels()
     
 def mouse_click(event):
+    def move(event):
+        print (event.x)
+        
+    def stop_move(event):
+        canvas.bind("<B1-Motion>", lambda x: x)
+        canvas.bind("<ButtonRelease-1>", lambda x: x)
+        
     global mouse_clicked
     global lines
     global canvas
     global selected_line
     
-    if mouse_clicked == 0:
-        
-        n = 0
+    current = canvas.find_withtag("current")[0]
     
-        for line in lines:
-            x1, y1, x2, y2 = canvas.coords(line['line'])
-        
+    for line in lines:
+        if line['line'] == current:
+            x1, y1, x2, y2 = canvas.coords(current)
+            color = canvas.itemconfig(current)['fill'][4]
             r1 = sqrt(pow(x1 - event.x,2) + pow(y1 - event.y,2))
             r2 = sqrt(pow(x2 - event.x,2) + pow(y2 - event.y,2))
-        
             if r1 < 10:
-                selected_line['line'] = line
                 selected_line['end'] = 0
                 selected_line['x2,y2'] = [x2,y2]
-                mouse_clicked = 1
             if r2 < 10:
-                selected_line['line'] = line
                 selected_line['end'] = 1
                 selected_line['x1,y1'] = [x1,y1]
-                mouse_clicked = 1
-            if  mouse_clicked:
-                selected_line['color'] = canvas.itemconfig(line['line'])['fill'][4]
-                selected_line['n'] = n
-                canvas.itemconfig(line['line'],fill="red",width=3)
-                break
-            n += 1
-                
-    else:
-        mouse_clicked = 0
-        line = selected_line['line']
-        if line != None:
-            
-            if selected_line['end'] == 0:
-                x1, y1 = event.x, event.y  
-                x2, y2 = selected_line['x2,y2']
-                
-            if selected_line['end'] == 1:
-                x2, y2 = event.x, event.y
-                x1, y1 = selected_line['x1,y1']
-            
-            canvas.coords(line['line'],x1,y1,x2,y2)
-            lines[selected_line['n']] = {
-                    'line': line['line'], 
-                    'x1': x1, 
-                    'y1': y1, 
-                    'x2': x2, 
-                    'y2': y2, 
-                    'color': selected_line['color']
-                    }
-            update_labels()
-            
-            selected_line['line'] = None
-            
-            canvas.itemconfig(line['line'],fill=selected_line['color'],width=2)
+            selected_line['line'] = current
+            selected_line['color'] = color
+            canvas.itemconfig(current,fill="red",width=4)
+            canvas.bind("<B1-Motion>", move)
+            canvas.bind("<ButtonRelease-1>", stop_move)
             
         
 def update_labels():
@@ -161,7 +133,7 @@ def new_line():
         
     x1, y1, x2, y2 = 100, 100, 250, 200
     
-    line = canvas.create_line(x1, y1, x2, y2, fill=color ,width=2)    
+    line = canvas.create_line(x1, y1, x2, y2, fill=color ,width=2, activewidth=4)    
     lines += [{'line': line, 'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2, 'color': color}]
     update_labels()
 
