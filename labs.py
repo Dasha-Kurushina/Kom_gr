@@ -4,10 +4,18 @@ import numpy as np
 from json import load, dump
 from tkinter import messagebox
 from tkinter.filedialog import askopenfilename, asksaveasfilename
+from PIL import Image, ImageTk  
 
 
 root = None
 canvas = None
+img_cnv = None
+img_mov = None
+img_mir = None
+img_pro = None
+img_rot = None
+img_scl = None
+img_lab = None
 mouse_clicked = 0
 lines = []
 coords = []
@@ -21,6 +29,7 @@ selected_line = {
 selected_lines = []
 coords_visible = 0
 funcs_visible = 0
+f_xy = lambda matr, x, y: (x, y)
 
 matr = []
 
@@ -59,7 +68,120 @@ def load_draw():
             line['line'] = canvas.create_line(x1, y1, x2, y2, fill=color ,width=2)
         
         update_labels()
-        
+
+def display_image(image):
+    global img_lab
+    global root
+    
+    try:
+        img_lab.destroy()
+    except AttributeError:
+        pass
+    
+    img_lab = Label(root, image=image, bg='#ebff9c')
+    img_lab.place(x= 520, y=450, width=400, height=101)
+
+
+def read_matr(matr):
+    a, b, p = matr[0][0].get(), matr[0][1].get(), matr[0][2].get() 
+    c, d, q = matr[1][0].get(), matr[1][1].get(), matr[1][2].get()
+    e, f, s = matr[2][0].get(), matr[2][1].get(), matr[2][2].get()
+    return a, b, c, d, e, f, p, q, s
+       
+def смещение():
+    def f_mov(matr, x, y):
+        a, b, c, d, e, f, p, q, s = read_matr(matr)
+        x1 = x + e
+        y1 = y + f
+        return x1, y1  
+    
+    global f_xy
+    global img_mov
+
+
+    matr[0][0].set(1), matr[0][1].set(0), matr[0][2].set(0) 
+    matr[1][0].set(0), matr[1][1].set(1), matr[1][2].set(0)
+    matr[2][0].set(50),matr[2][1].set(40), matr[2][2].set(1)
+    f_xy = f_mov
+    
+    display_image(img_mov)
+    
+
+def масштабирование():
+    def f_scl(matr, x, y):
+        a, b, c, d, e, f, p, q, s = read_matr(matr)
+        x1 = a * x
+        y1 = d * y
+        return x1, y1
+    
+    global f_xy
+    global img_scl
+    
+    matr[0][0].set(0.5), matr[0][1].set(0), matr[0][2].set(0) 
+    matr[1][0].set(0), matr[1][1].set(0.4), matr[1][2].set(0)
+    matr[2][0].set(0),matr[2][1].set(0), matr[2][2].set(1)
+    f_xy = f_scl
+    
+    display_image(img_scl)
+
+
+def зеркалирование():    
+    def f_mir(matr, x, y):
+        a, b, c, d, e, f, p, q, s = read_matr(matr)
+        x1 = a * x + c * y + e
+        y1 = b * x + d * y + f
+#        z1 = p * x + q * y + s
+#        x1 *= z1
+#        y1 *= z1
+        return x1, y1  
+    
+    global img_mir
+    
+    global f_xy
+    matr[0][0].set(-1), matr[0][1].set(0), matr[0][2].set(0) 
+    matr[1][0].set(0), matr[1][1].set(1), matr[1][2].set(0)
+    matr[2][0].set(0),matr[2][1].set(0), matr[2][2].set(1)
+    f_xy = f_mir
+    
+    display_image(img_mir)
+
+
+def вращение():
+    def f_rot(matr, x, y):
+        a, b, c, d, e, f, p, q, s = read_matr(matr)
+        a, b, c, d = radians(a), radians(b), radians(c), radians(d)
+        x1 = x * cos(a) - y * sin(c)
+        y1 = x * sin(b) + y * cos(d)
+
+        return x1, y1  
+    
+    global img_rot
+    
+    global f_xy
+    matr[0][0].set(30), matr[0][1].set(30), matr[0][2].set(0) 
+    matr[1][0].set(30), matr[1][1].set(30), matr[1][2].set(0)
+    matr[2][0].set(0),  matr[2][1].set(0),  matr[2][2].set(1)
+    f_xy = f_rot
+    
+    display_image(img_rot)
+
+
+def проецирование():
+    def f_pro(matr, x, y):
+        a, b, c, d, e, f, p, q, s = read_matr(matr)
+        x1 = x / (p * x + q * y + 1)
+        y1 = y / (p * x + q * y + 1)
+        return x1, y1
+    
+    global img_pro
+    
+    global f_xy
+    matr[0][0].set(1), matr[0][1].set(0), matr[0][2].set(20) 
+    matr[1][0].set(0), matr[1][1].set(1), matr[1][2].set(30)
+    matr[2][0].set(0),  matr[2][1].set(0),  matr[2][2].set(1)
+    f_xy = f_pro
+    
+    display_image(img_pro)
 
         
 def transform():
@@ -70,12 +192,8 @@ def transform():
         c, d, q = matr[1][0].get(), matr[1][1].get(), matr[1][2].get()
         e, f, s = matr[2][0].get(),-matr[2][1].get(), matr[2][2].get()
         for i in range(len(coords) // 2):        
-            x, y = coords[i * 2] - 250, 200 - coords[i * 2 + 1]        
-            x1 = a * x + c * y + e
-            y1 = b * x + d * y + f
-            z1 = p * x + q * y + s
-            x1 *= z1
-            y1 *= z1
+            x, y = coords[i * 2] - 250, 200 - coords[i * 2 + 1]       
+            x1,y1 = f_xy(matr, x, y)
             coords_new += [x1 + 250, 200 - y1]
         canvas.coords(line, coords_new)
     
@@ -282,6 +400,12 @@ def show_functions():
 def create_window():
     global canvas 
     global matr
+    global img_mov
+    global img_mir
+    global img_pro
+    global img_rot
+    global img_scl
+    global img_lab
     
     root = Tk()
     root.title(u'Графический редактор к вашим услугам, сэр.')
@@ -308,14 +432,23 @@ def create_window():
     btn_load=Button(root,text='Сказано -\nзагружено.',width=15,height=2,bg='#00d491',
                    fg='black',font='arial 14', command=load_draw).place(x=322, y=530)
     
-    btn_transform=Button(root,text='Разрешите\nвыполнить',width=14,height=2,bg='#FFE261',
-                   fg='black',font='arial 14', command=transform).place(x=520, y=195)
+    btn_T=Button(root,text='Смещение',width=14,height=1,bg='#FFE180',
+                   fg='black',font='arial 14', command=смещение).place(x=520, y=195)
+
+    btn_R=Button(root,text='Вращение',width=14,height=1,bg='#FFE180',
+                   fg='black',font='arial 14', command=вращение).place(x=520, y=235)
+
+    btn_S=Button(root,text='Масштабирование',width=14,height=1,bg='#FFE180',
+                   fg='black',font='arial 14', command=масштабирование).place(x=520, y=275)
+
+    btn_M=Button(root,text='Зеркалирование',width=14,height=1,bg='#FFE180',
+                   fg='black',font='arial 14', command=зеркалирование).place(x=520, y=315)
     
-    btn_cos=Button(root,text='Посчитать cos',width=11,height=1,bg='#C3FD8C',
-                   fg='black',font='arial 14', command=calc_cos).place(x=695, y=110)
+    btn_P=Button(root,text='Проецирование',width=14,height=1,bg='#FFE180',
+                   fg='black',font='arial 14', command=проецирование).place(x=520, y=355)
     
-    btn_sin=Button(root,text='Посчитать sin',width=11,height=1,bg='#C3FD8C',
-                   fg='black',font='arial 14', command=calc_sin).place(x=695, y=150)
+    btn_transform=Button(root,text='Разрешите выполнить',width=27,height=1,bg='#FFE261',
+                   fg='black',font='arial 14', command=transform).place(x=520, y=400)
     
     poetry = " Сударь, заполните числами \n данную матрицу преобразований: "
     label2 = Label(text=poetry,font="Arial 14",bg='#FFE261', justify=LEFT).place(x=520, y=55)
@@ -327,32 +460,39 @@ def create_window():
         ]
     
     message_entry00 = Entry(textvariable=matr[0][0],width=5)
-    message_entry00.place(x=545, y=125, anchor="c")
+    message_entry00.place(x=545, y=130, anchor="c")
     
     message_entry01 = Entry(textvariable=matr[0][1],width=5)
-    message_entry01.place(x=590, y=125, anchor="c")
+    message_entry01.place(x=590, y=130, anchor="c")
     
     message_entry02 = Entry(textvariable=matr[0][2],width=5)
-    message_entry02.place(x=635, y=125, anchor="c")
+    message_entry02.place(x=635, y=130, anchor="c")
     
     message_entry10 = Entry(textvariable=matr[1][0],width=5)
-    message_entry10.place(x=545, y=145, anchor="c")
+    message_entry10.place(x=545, y=150, anchor="c")
     
     message_entry11 = Entry(textvariable=matr[1][1],width=5)
-    message_entry11.place(x=590, y=145, anchor="c")
+    message_entry11.place(x=590, y=150, anchor="c")
     
     message_entry12 = Entry(textvariable=matr[1][2],width=5)
-    message_entry12.place(x=635, y=145, anchor="c")
+    message_entry12.place(x=635, y=150, anchor="c")
     
     message_entry20 = Entry(textvariable=matr[2][0],width=5)
-    message_entry20.place(x=545, y=165, anchor="c")
+    message_entry20.place(x=545, y=170, anchor="c")
     
     message_entry21 = Entry(textvariable=matr[2][1],width=5)
-    message_entry21.place(x=590, y=165, anchor="c")
+    message_entry21.place(x=590, y=170, anchor="c")
     
     message_entry22 = Entry(textvariable=matr[2][2],width=5)
-    message_entry22.place(x=635, y=165, anchor="c")
+    message_entry22.place(x=635, y=170, anchor="c")
 
+    
+    img_mov = ImageTk.PhotoImage(file = "img/mov.png")
+    img_mir = ImageTk.PhotoImage(file = "img/mir.png")
+    img_pro = ImageTk.PhotoImage(file = "img/pro.png")
+    img_rot = ImageTk.PhotoImage(file = "img/rot.png")
+    img_scl = ImageTk.PhotoImage(file = "img/scl.png")
+    img_lab = Label(root)
     
     canvas = Canvas(root,bg='#f3ffc5')
     canvas.place(x=15, y=55, width=500, height=400)
