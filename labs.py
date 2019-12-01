@@ -14,12 +14,15 @@ coords = []
 funcs = []
 selected_line = {
     'line': None, 
-    'end': 0,
+    'end': -1,
     'x1,y1': [],
     'x2,y2': [],
 }
+selected_lines = []
 coords_visible = 0
 funcs_visible = 0
+
+matr = []
 
 colors = load(open('colors.json'))
 last_color = 0
@@ -56,61 +59,109 @@ def load_draw():
             line['line'] = canvas.create_line(x1, y1, x2, y2, fill=color ,width=2)
         
         update_labels()
+        
 
+        
+def transform():
+    for line in canvas.find_withtag("selected"):        
+        coords = canvas.coords(line)
+        coords_new = []
+        a, b, p = matr[0][0].get(), matr[0][1].get(), matr[0][2].get() 
+        c, d, q = matr[1][0].get(), matr[1][1].get(), matr[1][2].get()
+        e, f, s = matr[2][0].get(),-matr[2][1].get(), matr[2][2].get()
+        for i in range(len(coords) // 2):        
+            x, y = coords[i * 2] - 250, 200 - coords[i * 2 + 1]        
+            x1 = a * x + c * y + e
+            y1 = b * x + d * y + f
+            z1 = p * x + q * y + s
+            x1 *= z1
+            y1 *= z1
+            coords_new += [x1 + 250, 200 - y1]
+        canvas.coords(line, coords_new)
+    
+    
+def calc_cos():
+    matr[0][0].set(cos(radians(matr[0][0].get())))
+    matr[1][1].set(cos(radians(matr[1][1].get())))
 
-def del_selected_line(event):
-    global lines
-    global canvas
-    
-    line_to_del = None
-    
-    for line in lines:
-        x1, y1, x2, y2 = canvas.coords(line['line'])
-    
-        r1 = sqrt(pow(x1 - event.x,2) + pow(y1 - event.y,2))
-        r2 = sqrt(pow(x2 - event.x,2) + pow(y2 - event.y,2))
-    
-        if r1 < 20 or r2 < 20:
-            line_to_del = line
-    
-    if line_to_del != None:
-        n = lines.index(line_to_del)
-        canvas.delete(lines.pop(n)['line'])
-        update_labels()
+def calc_sin():
+    matr[1][0].set(-sin(radians(matr[1][0].get())))
+    matr[0][1].set( sin(radians(matr[0][1].get())))
     
 def mouse_click(event):
     def move(event):
-        print (event.x)
+        end = selected_line['end']
+        line = selected_line['line']
+        
+        _c = canvas.coords(line)
+        __c = []
+        for  i in range(0, len(_c)//2):
+            x,y = (_c[i * 2], _c[i * 2 + 1])
+            if (x,y) == end:
+                x_n, y_n = event.x,event.y
+                __c += [x_n, y_n]
+                selected_line['end'] = (x_n, y_n)
+            else:
+                __c += [x, y]
+        canvas.coords(line, __c)
         
     def stop_move(event):
         canvas.bind("<B1-Motion>", lambda x: x)
         canvas.bind("<ButtonRelease-1>", lambda x: x)
-        
+        canvas.itemconfig(current,fill=selected_line['color'],width=2)
+        lines[selected_line['n']] = {
+            'line': line['line'], 
+            'coords': canvas.coords(selected_line['line']),
+            'color': selected_line['color']
+        }
+        print(lines)
+
     global mouse_clicked
     global lines
     global canvas
     global selected_line
     
-    current = canvas.find_withtag("current")[0]
+    try:
+        current = canvas.find_withtag("current")[0]        
+        m = 0
+
+        for line in lines:
+            if line['line'] == current:
+                _c = canvas.coords(current)
+                selected_line['line'] = current
+                x1,y1 = (_c[0], _c[1])
+                for i in range(1, len(_c)//2):
+                    x2,y2 = (_c[i * 2], _c[i * 2 + 1])
+                    r1 = sqrt(pow(x1 - event.x,2) + pow(y1 - event.y,2))
+                    r2 = sqrt(pow(x2 - event.x,2) + pow(y2 - event.y,2))
+                    if r1 < 10:
+                        selected_line['end'] = (x1, y1)
+                    elif r2 < 10:
+                        selected_line['end'] = (x2, y2)
+                    else:
+                        x, y = (event.x, event.y)
+                        if x1 < x < x2 and y1 < y < y2:
+                            selected_line['end'] = (x, y)
+                            n = i * 2
+                    x1,y1 = x2,y2
+                try:
+                    _c.insert(n, y)
+                    _c.insert(n, x)
+                    canvas.coords(current, _c)
+                except NameError:
+                    pass
+                
+                selected_line['n'] = m
+                selected_line['line'] = current
+                selected_line['color'] = canvas.itemconfig(current)['fill'][4]
+                canvas.itemconfig(current,fill="red",width=4)
+                canvas.bind("<B1-Motion>", move)
+                canvas.bind("<ButtonRelease-1>", stop_move)
+            m += 1
+                
+    except IndexError:
+        pass
     
-    for line in lines:
-        if line['line'] == current:
-            x1, y1, x2, y2 = canvas.coords(current)
-            color = canvas.itemconfig(current)['fill'][4]
-            r1 = sqrt(pow(x1 - event.x,2) + pow(y1 - event.y,2))
-            r2 = sqrt(pow(x2 - event.x,2) + pow(y2 - event.y,2))
-            if r1 < 10:
-                selected_line['end'] = 0
-                selected_line['x2,y2'] = [x2,y2]
-            if r2 < 10:
-                selected_line['end'] = 1
-                selected_line['x1,y1'] = [x1,y1]
-            selected_line['line'] = current
-            selected_line['color'] = color
-            canvas.itemconfig(current,fill="red",width=4)
-            canvas.bind("<B1-Motion>", move)
-            canvas.bind("<ButtonRelease-1>", stop_move)
-            
         
 def update_labels():
     show_coordinates()
@@ -133,11 +184,47 @@ def new_line():
         
     x1, y1, x2, y2 = 100, 100, 250, 200
     
-    line = canvas.create_line(x1, y1, x2, y2, fill=color ,width=2, activewidth=4)    
-    lines += [{'line': line, 'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2, 'color': color}]
+    line = canvas.create_line(x1, y1, x2, y2, fill=color, tags=color ,width=2, activewidth=4)    
+    lines += [{'line': line, 'coords': [x1,  y1,  x2,  y2], 'color': color}]
     update_labels()
+    
 
     
+def select_line(event):
+    global canvas
+    try:        
+        current = canvas.find_withtag("current")[0]  
+        print(canvas.gettags(current))
+        assert 'dont_touch' not in canvas.gettags(current)
+        canvas.addtag('selected', 'withtag', 'current')
+        canvas.itemconfig('selected',fill="red",width=3)
+    except (IndexError, AssertionError):
+        for line in canvas.find_withtag("selected"):
+            color = [ x for x in canvas.gettags(line) if x[0] == '#' ][0]
+            canvas.itemconfig(line, fill=color)
+        canvas.dtag('selected', 'selected')
+    
+
+def del_selected_line(event):
+    global lines
+    global canvas
+    
+    line_to_del = None
+    
+    for line in lines:
+        x1, y1, x2, y2 = canvas.coords(line['line'])
+    
+        r1 = sqrt(pow(x1 - event.x,2) + pow(y1 - event.y,2))
+        r2 = sqrt(pow(x2 - event.x,2) + pow(y2 - event.y,2))
+    
+        if r1 < 20 or r2 < 20:
+            line_to_del = line
+    
+    if line_to_del != None:
+        n = lines.index(line_to_del)
+        canvas.delete(lines.pop(n)['line'])
+        update_labels()
+        
 def del_line():  
     try:
         canvas.delete(lines.pop()['line'])
@@ -194,6 +281,8 @@ def show_functions():
         
 def create_window():
     global canvas 
+    global matr
+    
     root = Tk()
     root.title(u'Графический редактор к вашим услугам, сэр.')
     
@@ -219,77 +308,69 @@ def create_window():
     btn_load=Button(root,text='Сказано -\nзагружено.',width=15,height=2,bg='#00d491',
                    fg='black',font='arial 14', command=load_draw).place(x=322, y=530)
     
-    btn_T=Button(root,text='Смещение',width=14,height=1,bg='#FFE261',
-                   fg='black',font='arial 14', command=load_draw).place(x=520, y=55)
+    btn_transform=Button(root,text='Разрешите\nвыполнить',width=14,height=2,bg='#FFE261',
+                   fg='black',font='arial 14', command=transform).place(x=520, y=195)
     
-    btn_R=Button(root,text='Вращение',width=14,height=1,bg='#FFE261',
-                   fg='black',font='arial 14', command=load_draw).place(x=520, y=95)
+    btn_cos=Button(root,text='Посчитать cos',width=11,height=1,bg='#C3FD8C',
+                   fg='black',font='arial 14', command=calc_cos).place(x=695, y=110)
     
-    btn_S=Button(root,text='Масштабирование',width=14,height=1,bg='#FFE261',
-                   fg='black',font='arial 14', command=load_draw).place(x=520, y=135)
+    btn_sin=Button(root,text='Посчитать sin',width=11,height=1,bg='#C3FD8C',
+                   fg='black',font='arial 14', command=calc_sin).place(x=695, y=150)
     
-    btn_M=Button(root,text='Зеркалирование',width=14,height=1,bg='#FFE261',
-                   fg='black',font='arial 14', command=load_draw).place(x=520, y=175)
+    poetry = " Сударь, заполните числами \n данную матрицу преобразований: "
+    label2 = Label(text=poetry,font="Arial 14",bg='#FFE261', justify=LEFT).place(x=520, y=55)
     
-    btn_P=Button(root,text='Проецирование',width=14,height=1,bg='#FFE261',
-                   fg='black',font='arial 14', command=load_draw).place(x=520, y=215)
-    
-    btn_do=Button(root,text='Выполнить',width=14,height=1,bg='#FF9E61',
-                   fg='black',font='arial 14', command=load_draw).place(x=520, y=320)
-    
-    poetry = "Для создания прямой, нажмите 'Прямая, появись!'.\nДля удаления последней созданной прямой, нажмите 'Прямая, сгинь!'. Для удаления конкретной прямой, нажмите на ее конец ср.кнопкой мыши.\nДля передвижения конца прямой, нажмите на интересующий Вас конец и щелкните на желаемое место.\nДля появления координат прямых, нажмите 'Координаты, явитесь!'.\nДля появления уравнений, нажмите 'Уравнение, я выбираю тебя!'.\nДля сохранения и загрузки файла, нажмите на 'Сохранитесь, глупцы!' и 'Сказано - загружено.' соответственно.\nПриятного пользования!"
-    label2 = Label(text=poetry,bg='#e5ff80', justify=LEFT).place(x=15, y=595)
-    
-    M = [
+    matr = [
             [DoubleVar(),DoubleVar(),DoubleVar()],
             [DoubleVar(),DoubleVar(),DoubleVar()],
             [DoubleVar(),DoubleVar(),DoubleVar()]
         ]
     
-    message_entry00 = Entry(textvariable=M[0][0],width=5)
-    message_entry00.place(x=545, y=265, anchor="c")
+    message_entry00 = Entry(textvariable=matr[0][0],width=5)
+    message_entry00.place(x=545, y=125, anchor="c")
     
-    message_entry01 = Entry(textvariable=M[0][1],width=5)
-    message_entry01.place(x=590, y=265, anchor="c")
+    message_entry01 = Entry(textvariable=matr[0][1],width=5)
+    message_entry01.place(x=590, y=125, anchor="c")
     
-    message_entry02 = Entry(textvariable=M[0][2],width=5)
-    message_entry02.place(x=635, y=265, anchor="c")
+    message_entry02 = Entry(textvariable=matr[0][2],width=5)
+    message_entry02.place(x=635, y=125, anchor="c")
     
-    message_entry10 = Entry(textvariable=M[1][0],width=5)
-    message_entry10.place(x=545, y=285, anchor="c")
+    message_entry10 = Entry(textvariable=matr[1][0],width=5)
+    message_entry10.place(x=545, y=145, anchor="c")
     
-    message_entry11 = Entry(textvariable=M[1][1],width=5)
-    message_entry11.place(x=590, y=285, anchor="c")
+    message_entry11 = Entry(textvariable=matr[1][1],width=5)
+    message_entry11.place(x=590, y=145, anchor="c")
     
-    message_entry12 = Entry(textvariable=M[1][2],width=5)
-    message_entry12.place(x=635, y=285, anchor="c")
+    message_entry12 = Entry(textvariable=matr[1][2],width=5)
+    message_entry12.place(x=635, y=145, anchor="c")
     
-    message_entry20 = Entry(textvariable=M[2][0],width=5)
-    message_entry20.place(x=545, y=305, anchor="c")
+    message_entry20 = Entry(textvariable=matr[2][0],width=5)
+    message_entry20.place(x=545, y=165, anchor="c")
     
-    message_entry21 = Entry(textvariable=M[2][1],width=5)
-    message_entry21.place(x=590, y=305, anchor="c")
+    message_entry21 = Entry(textvariable=matr[2][1],width=5)
+    message_entry21.place(x=590, y=165, anchor="c")
     
-    message_entry22 = Entry(textvariable=M[2][2],width=5)
-    message_entry22.place(x=635, y=305, anchor="c")
+    message_entry22 = Entry(textvariable=matr[2][2],width=5)
+    message_entry22.place(x=635, y=165, anchor="c")
 
     
     canvas = Canvas(root,bg='#f3ffc5')
     canvas.place(x=15, y=55, width=500, height=400)
     canvas.bind("<Button-1>" ,mouse_click)
     canvas.bind("<Button-2>" ,del_selected_line)
+    canvas.bind("<Shift-Button-1>" ,select_line)
 
-    canvas.create_line(250,0, 250,400, fill="#aad400")    
-    canvas.create_line(0,200, 500,200, fill="#aad400")    
+    canvas.create_line(250,0, 250,400, fill="#aad400", tags = 'dont_touch')    
+    canvas.create_line(0,200, 500,200, fill="#aad400", tags = 'dont_touch')    
 
     for x in np.linspace(-250,250,11):
-        canvas.create_line(x + 250, 195, x + 250, 205, fill="#aad400") 
-        canvas.create_text(x + 250, 215, text = str(x), justify=CENTER, fill="#aad400")
+        canvas.create_line(x + 250, 195, x + 250, 205, fill="#aad400", tags = 'dont_touch') 
+        canvas.create_text(x + 250, 215, text = str(x), justify=CENTER, fill="#aad400", tags = 'dont_touch')
         
     for y in np.linspace(-200,200,11):
         if y != 0:
-            canvas.create_line(245, 200 - y, 255, 200 - y, fill="#aad400") 
-            canvas.create_text(280, 200 - y, text = str(y), fill="#aad400")
+            canvas.create_line(245, 200 - y, 255, 200 - y, fill="#aad400", tags = 'dont_touch') 
+            canvas.create_text(280, 200 - y, text = str(y), fill="#aad400", tags = 'dont_touch')
 
     
     return root
